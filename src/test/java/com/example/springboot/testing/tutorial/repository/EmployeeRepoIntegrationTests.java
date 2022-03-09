@@ -1,19 +1,21 @@
 package com.example.springboot.testing.tutorial.repository;
 
 import com.example.springboot.testing.tutorial.model.Employee;
-import static org.assertj.core.api.Assertions.assertThat;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import java.util.List;
 import java.util.Optional;
 
-@DataJpaTest //internally uses H2 database
-public class EmployeeRepoTests {
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE) //Disable H2 memory DB
+public class EmployeeRepoIntegrationTests {
 
     @Autowired
     private EmployeeRepo employeeRepo;
@@ -86,7 +88,7 @@ public class EmployeeRepoTests {
 
         //then - verify the output
         assertThat(employeeList).isNotNull();
-        assertThat(employeeList.size()).isEqualTo(2);
+        assertThat(employeeList.size()).isEqualTo(3);
 
     }
 

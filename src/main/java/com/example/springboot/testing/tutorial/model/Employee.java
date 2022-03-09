@@ -1,13 +1,16 @@
 package com.example.springboot.testing.tutorial.model;
 
-import lombok.Builder;
-import lombok.Data;
+import lombok.*;
 
 import javax.persistence.*;
 
 
 @Data
-@Builder
+@Builder(toBuilder = true)
+@AllArgsConstructor(access = AccessLevel.PACKAGE)
+@NoArgsConstructor(access = AccessLevel.PACKAGE)
+@Setter(value = AccessLevel.PUBLIC)
+@Getter
 @Entity
 @Table(name = "employees")
 public class Employee {

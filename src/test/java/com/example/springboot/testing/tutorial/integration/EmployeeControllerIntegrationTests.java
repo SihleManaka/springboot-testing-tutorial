@@ -1,20 +1,16 @@
-package com.example.springboot.testing.tutorial.controller;
+package com.example.springboot.testing.tutorial.integration;
 
 import com.example.springboot.testing.tutorial.model.Employee;
-import com.example.springboot.testing.tutorial.service.implentation.EmployeeServiceImplemantation;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.example.springboot.testing.tutorial.repository.EmployeeRepo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatcher;
-import org.mockito.ArgumentMatchers;
-import org.mockito.BDDMockito;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
@@ -24,23 +20,28 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
-@WebMvcTest
-public class EmployeeControllerTest {
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
+public class EmployeeControllerIntegrationTests {
 
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
-    private EmployeeServiceImplemantation employeeServiceImplemantation;
+    @Autowired
+    private EmployeeRepo employeeRepo;
 
     @Autowired
     private ObjectMapper objectMapper;
 
+    @BeforeEach
+    public void setup(){
+        employeeRepo.deleteAll();
+    }
+
     //JUnit test for employee post rest endpoint
     @Test
-    @DisplayName("controllerCreateEmployeeTest")
+    @DisplayName("controllerCreateEmployeeIntegrationTest")
     public void givenEmployeeObj_whenCreateEmployee_thenReturnSavedEmployee() throws Exception {
 
         //given - precondition or setup
@@ -49,10 +50,6 @@ public class EmployeeControllerTest {
                 .lastName("Manaka")
                 .email("jay@gmail.com")
                 .build();
-
-        //BDDMockito.given(employeeServiceImplemantation.saveEmployee(employee)).willReturn(employee);
-        BDDMockito.given(employeeServiceImplemantation.saveEmployee(ArgumentMatchers.any(Employee.class)))
-                .willAnswer((invocation)->invocation.getArgument(0));
 
         //when - action or behaviour to be tested
         ResultActions response = mockMvc.perform(MockMvcRequestBuilders.post("/api/employees")
@@ -72,7 +69,7 @@ public class EmployeeControllerTest {
 
     //JUnit test for get all employees REST API
     @Test
-    @DisplayName("controllerGetAllEmployeeTest")
+    @DisplayName("controllerGetAllEmployeeIntegrationTest")
     public void givenListOfEmployees_whenGetAll_thenEmployeeList() throws Exception {
 
         //given - precondition or setup
@@ -88,7 +85,8 @@ public class EmployeeControllerTest {
                 .email("zinhle@gmail.com")
                 .build());
 
-        BDDMockito.given(employeeServiceImplemantation.getAllEmployees()).willReturn(employeeList);
+        //save employees to db
+        employeeRepo.saveAll(employeeList);
 
         //when - action or behaviour to be tested
         ResultActions response = mockMvc.perform(MockMvcRequestBuilders.get("/api/employees"));
@@ -97,27 +95,27 @@ public class EmployeeControllerTest {
         response.andExpect(MockMvcResultMatchers.status().isOk()) //we checking if the status is 200/ok
                 .andDo(MockMvcResultHandlers.print()) //to print the response
                 .andExpect(MockMvcResultMatchers.jsonPath("$.size()",CoreMatchers.is(employeeList.size())));
-                //we verifying the size of the array
+        //we verifying the size of the array
     }
 
     //JUnit positive test for get employee by ID REST API
     @Test
-    @DisplayName("controllerGetEmployeeByIdTest")
+    @DisplayName("controllerGetEmployeeByIdIntegrationTest")
     public void givenEmployeeId_whenGetEmployeeID_thenReturnEmployee() throws Exception {
 
         //given - precondition or setup
-        long employeeId = 1L;
         Employee employee = Employee.builder()
                 .firstName("Sihle")
                 .lastName("Manaka")
                 .email("jay@gmail.com")
                 .build();
 
-        BDDMockito.given(employeeServiceImplemantation.getEmployeeById(employeeId)).willReturn(Optional.of(employee));
 
+        //save employee
+        employeeRepo.save(employee);
 
         //when - action or behaviour to be tested
-        ResultActions response =  mockMvc.perform(MockMvcRequestBuilders.get("/api/employees/{id}",employeeId));
+        ResultActions response =  mockMvc.perform(MockMvcRequestBuilders.get("/api/employees/{id}",employee.getId()));
 
         //then - verify the output
         response.andExpect(MockMvcResultMatchers.status().isOk())
@@ -131,9 +129,9 @@ public class EmployeeControllerTest {
 
     }
 
-    //JUnit Nagative test for get employee by ID REST API
+    //JUnit Negative test for get employee by ID REST API
     @Test
-    @DisplayName("controllerGetEmployeeByIdNegativeTest")
+    @DisplayName("controllerGetEmployeeByIdNegativeIntegrationTest")
     public void givenInvalidEmployeeId_whenGetEmployeeID_thenReturnEmpty() throws Exception {
 
         //given - precondition or setup
@@ -143,11 +141,10 @@ public class EmployeeControllerTest {
                 .lastName("Manaka")
                 .email("jay@gmail.com")
                 .build();
-
-        BDDMockito.given(employeeServiceImplemantation.getEmployeeById(employeeId)).willReturn(Optional.empty());
-
-
+        //save employee
+        employeeRepo.save(employee);
         //when - action or behaviour to be tested
+        // employeeId 1L does not exist in DB
         ResultActions response =  mockMvc.perform(MockMvcRequestBuilders.get("/api/employees/{id}",employeeId));
 
         //then - verify the output
@@ -158,16 +155,18 @@ public class EmployeeControllerTest {
 
     //JUnit test for update REST API - positive scenario
     @Test
-    @DisplayName("controllerUpdateEmployeeTest")
+    @DisplayName("controllerUpdateEmployeeIntegrationTest")
     public void givenUpdateEmployee_whenUpdating_thenReturnUpdatedEmployee() throws Exception {
 
         //given - precondition or setup
-        long employeeId = 1L;
         Employee savedEmployee = Employee.builder()
                 .firstName("Sihle")
                 .lastName("Manaka")
                 .email("jay@gmail.com")
                 .build();
+
+        //save employee
+        employeeRepo.save(savedEmployee);
 
         //simulate update
         Employee updatedEmployee = Employee.builder()
@@ -176,14 +175,8 @@ public class EmployeeControllerTest {
                 .email("Zinhle@gmail.com")
                 .build();
 
-        //stub get by id
-        BDDMockito.given(employeeServiceImplemantation.getEmployeeById(employeeId)).willReturn(Optional.of(savedEmployee));
-
-        BDDMockito.given(employeeServiceImplemantation.updateEmployee(ArgumentMatchers.any(Employee.class)))
-                .willAnswer((invocation)->invocation.getArgument(0));
-
         //when - action or behaviour to be tested
-        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/employees/{id}",employeeId)
+        ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/employees/{id}",savedEmployee.getId())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(updatedEmployee)));
 
@@ -201,7 +194,7 @@ public class EmployeeControllerTest {
 
     //JUnit test for update REST API - negative scenario
     @Test
-    @DisplayName("controllerUpdateEmployeeNegativeTest")
+    @DisplayName("controllerUpdateEmployeeNegativeIntegrationTest")
     public void givenUpdateEmployee_whenUpdating_thenReturn404() throws Exception {
 
         //given - precondition or setup
@@ -212,18 +205,15 @@ public class EmployeeControllerTest {
                 .email("jay@gmail.com")
                 .build();
 
+        //save employee
+        employeeRepo.save(savedEmployee);
+
         //simulate update
         Employee updatedEmployee = Employee.builder()
                 .firstName("Zinhle")
                 .lastName("Manaka")
                 .email("Zinhle@gmail.com")
                 .build();
-
-        //stub get by id
-        BDDMockito.given(employeeServiceImplemantation.getEmployeeById(employeeId)).willReturn(Optional.empty());
-
-        BDDMockito.given(employeeServiceImplemantation.updateEmployee(ArgumentMatchers.any(Employee.class)))
-                .willAnswer((invocation)->invocation.getArgument(0));
 
         //when - action or behaviour to be tested
         ResultActions response = mockMvc.perform(MockMvcRequestBuilders.put("/api/employees/{id}",employeeId)
@@ -238,15 +228,21 @@ public class EmployeeControllerTest {
 
     //JUnit test for delete employee REST API
     @Test
-    @DisplayName("controllerDeleteEmployeeTest")
+    @DisplayName("controllerDeleteEmployeeIntegrationTest")
     public void givenEmployeeID_whenDelete_thenReturn200() throws Exception {
 
         //given - precondition or setup
-        long employeeID = 1L;
-        BDDMockito.willDoNothing().given(employeeServiceImplemantation).deleteEmployee(employeeID);
+        //save employee first
+        Employee savedEmployee = Employee.builder()
+                .firstName("Sihle")
+                .lastName("Manaka")
+                .email("jay@gmail.com")
+                .build();
+
+        employeeRepo.save(savedEmployee);
 
         //when - action or behaviour to be tested
-        ResultActions resp = mockMvc.perform(MockMvcRequestBuilders.delete("/api/employees/{id}",employeeID));
+        ResultActions resp = mockMvc.perform(MockMvcRequestBuilders.delete("/api/employees/{id}",savedEmployee.getId()));
 
         //then - verify the output
         resp.andExpect(MockMvcResultMatchers.status().isOk())
